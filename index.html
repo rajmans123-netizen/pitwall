@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pit Wall · F1 race replay</title>
+<meta name="description" content="Replay any F1 race in your browser: every car moving on the track map. Free, open source.">
+<meta name="theme-color" content="#0B0C10">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #0B0C10; --panel: #14161D; --line: #242733; --ink: #F2F3F5; --muted: #8A8F9E; --red: #E10600; --green: #22C55E; --yellow: #FACC15; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.4 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.app { display: grid; grid-template-rows: auto 1fr auto; height: 100dvh; }
+header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.logo { font-weight: 900; font-size: 22px; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+.logo i { width: 10px; height: 22px; background: var(--red); transform: skewX(-18deg); display: inline-block; }
+.race { color: var(--muted); font-weight: 600; }
+.race b { color: var(--ink); }
+.spacer { flex: 1; }
+.lap { font: 900 22px/1 'Titillium Web'; }
+.lap small { color: var(--muted); font-weight: 600; font-size: 15px; }
+main { display: grid; grid-template-columns: 1fr; min-height: 0; }
+.map { position: relative; min-height: 0; }
+.hint { position: absolute; left: 20px; top: 14px; color: var(--muted); font-size: 13px; font-weight: 600; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+footer { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; font-weight: 700; }
+button.on { background: var(--red); border-color: var(--red); }
+#play { width: 44px; height: 40px; display: grid; place-items: center; padding: 0; }
+.scrub { flex: 1; min-width: 200px; position: relative; height: 40px; display: flex; align-items: center; }
+.scrub input { width: 100%; accent-color: var(--red); }
+.time { font: 500 13px 'JetBrains Mono'; color: var(--muted); min-width: 70px; text-align: right; }
+.credit { color: var(--muted); font-size: 12px; width: 100%; text-align: center; padding-top: 2px; }
+.credit a { color: inherit; }
+.loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); font-weight: 700; letter-spacing: .1em; color: var(--muted); z-index: 9; }
+@media (max-width: 760px) {
+    header { padding: 10px 14px; gap: 10px; } .race { width: 100%; order: 3; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="loading" id="loading">LOADING RACE…</div>
+<div class="app">
+  <header>
+    <div class="logo"><i></i>PIT WALL</div>
+    <div class="race" id="race"></div>
+    <div class="spacer"></div>
+    <div class="lap" id="lap">LAP 0 <small>/ 0</small></div>
+  </header>
+  <main>
+    <section class="map"><canvas id="cv"></canvas><div class="hint">Tap a car to follow it</div></section>
+  </main>
+  <footer>
+    <button id="play" aria-label="Play">▶</button>
+    <div id="speeds"></div>
+    <div class="scrub"><input type="range" id="scrub" min="0" max="1000" value="0"></div>
+    <div class="time" id="time">0:00:00</div>
+    <div class="credit">Data: <a href="https://openf1.org">OpenF1</a> (unofficial, not associated with Formula 1) · inspired by Tom Shaw's f1-race-replay · built with Claude by <a href="https://instagram.com/raj_triess">@raj_triess</a></div>
+  </footer>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
