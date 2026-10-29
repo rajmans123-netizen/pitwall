@@ -1,7 +1,7 @@
 # Packs one OpenF1 race into what the Pit Wall page loads:
 #   web/data/<slug>.bin  : Int16 x,y for every car, HZ frames a second, frame-major ([frame][driver][x, y])
 #   web/data/<slug>.json : drivers, track outline, positions, gaps, laps, flags, tyres, pit stops, weather
-# usage (after downloading OpenF1 JSON into raw/, car positions into raw/loc/<number>.json): python3 build_data.py raw/ austin 2026-10-25T20:03:40 2026-10-25T21:41:00
+# usage: python3 build_data.py raw/ austin 2026-10-25T20:03:40 2026-10-25T21:41:00
 import json, sys, os, bisect
 from datetime import datetime
 import numpy as np

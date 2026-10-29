@@ -19,8 +19,12 @@ header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; bord
 .logo { font-weight: 900; font-size: 22px; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
 .logo i { width: 10px; height: 22px; background: var(--red); transform: skewX(-18deg); display: inline-block; }
 .race { color: var(--muted); font-weight: 600; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs a { color: var(--muted); text-decoration: none; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); }
+.tabs a.on { color: var(--ink); background: var(--red); border-color: var(--red); }
 .race b { color: var(--ink); }
 .spacer { flex: 1; }
+select { font: 700 15px 'Titillium Web'; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; max-width: 100%; }
 .lap { font: 900 22px/1 'Titillium Web'; }
 .lap small { color: var(--muted); font-weight: 600; font-size: 15px; }
 main { display: grid; grid-template-columns: 1fr; min-height: 0; }
@@ -47,6 +51,8 @@ button.on { background: var(--red); border-color: var(--red); }
 <div class="app">
   <header>
     <div class="logo"><i></i>PIT WALL</div>
+    <nav class="tabs"><a href="index.html" class="on">Replay</a><a href="timing.html">Season timing</a></nav>
+    <select id="pick" aria-label="Race"></select>
     <div class="race" id="race"></div>
     <div class="spacer"></div>
     <div class="lap" id="lap">LAP 0 <small>/ 0</small></div>

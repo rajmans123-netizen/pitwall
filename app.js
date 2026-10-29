@@ -1,13 +1,19 @@
-// Pit Wall, part 1: replays an F1 race from OpenF1 data packed by build_data.py.
+// Pit Wall: replays any 2026 F1 race from OpenF1 data packed by build_data.py (build_replays.py does the whole season).
 // Every car is drawn on the track map at 60 fps, interpolated between the 4 Hz position frames.
 const $ = (id) => document.getElementById(id);
 const RACE = new URLSearchParams(location.search).get('race') || 'austin';
 const SPEEDS = [1, 4, 16, 64];
 
-const [meta, buf] = await Promise.all([
+const [meta, buf, season] = await Promise.all([
   fetch(`data/${RACE}.json`).then((r) => r.json()),
   fetch(`data/${RACE}.bin`).then((r) => r.arrayBuffer()),
+  fetch('data/season.json').then((r) => r.json()),
 ]);
+// pick any 2026 race that has a replay (latest first)
+$('pick').innerHTML = [...season.races].reverse().filter((r) => r.replay)
+  .map((r) => `<option value="${r.replay}">R${r.round} · ${r.name.replace(' Grand Prix', ' GP')} · ${r.venue}</option>`).join('');
+$('pick').value = RACE;
+$('pick').onchange = () => { location.search = `?race=${$('pick').value}`; };
 const XY = new Int16Array(buf), D = meta.drivers.length, HZ = meta.hz, DUR = meta.frames / HZ;
 const idx = Object.fromEntries(meta.drivers.map((d, i) => [d.n, i]));
 $('race').innerHTML = `<b>${meta.name}</b> · ${meta.location} · replay`;
