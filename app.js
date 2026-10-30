@@ -7,7 +7,7 @@ const SPEEDS = [1, 4, 16, 64];
 const [meta, buf, season] = await Promise.all([
   fetch(`data/${RACE}.json`).then((r) => r.json()),
   fetch(`data/${RACE}.bin`).then((r) => r.arrayBuffer()),
-  fetch('data/season.json').then((r) => r.json()),
+  fetch('data/season.json', { cache: 'no-cache' }).then((r) => r.json()),
 ]);
 // pick any 2026 race that has a replay (latest first)
 $('pick').innerHTML = [...season.races].reverse().filter((r) => r.replay)

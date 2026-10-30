@@ -13,8 +13,11 @@ for d in sorted(glob.glob(f'{HERE}/raw_replay/*/')):
     starts = [ts(l['date_start']) for l in laps if l['lap_number'] == 1 and l.get('date_start')]
     if not starts:   # lap 1 often has no start time: back it out from lap 2
         starts = [ts(l['date_start']) - timedelta(seconds=120) for l in laps if l['lap_number'] == 2 and l.get('date_start')]
-    ends = [ts(l['date_start']) + timedelta(seconds=l['lap_duration']) for l in laps if l.get('date_start') and l.get('lap_duration')]
-    t0 = (min(starts) - timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%S'); t1 = (max(ends) + timedelta(seconds=30)).strftime('%Y-%m-%dT%H:%M:%S')
+    # the end: 60 s after the leader's last lap (a few laps carry stray timestamps that would stretch the replay)
+    top = max(l['lap_number'] for l in laps)
+    last = [ts(l['date_start']) + timedelta(seconds=l['lap_duration']) for l in laps if l['lap_number'] == top and l.get('date_start') and l.get('lap_duration')]
+    if not last: last = [ts(l['date_start']) + timedelta(seconds=120) for l in laps if l['lap_number'] == top and l.get('date_start')]
+    t0 = (min(starts) - timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%S'); t1 = (min(last) + timedelta(seconds=60)).strftime('%Y-%m-%dT%H:%M:%S')
     subprocess.run(['python3', f'{HERE}/build_data.py', d, slug, t0, t1], check=True, cwd=HERE)
     p = f'{HERE}/web/data/{slug}.json'; m = json.load(open(p))
     m['name'] = json.load(open(f'{HERE}/web/data/timing/{slug}.json'))['name']

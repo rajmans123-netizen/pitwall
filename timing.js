@@ -6,7 +6,7 @@ const TYRE = { SOFT: '#E10600', MEDIUM: '#FACC15', HARD: '#F2F3F5', INTERMEDIATE
 const fmt = (s) => s == null ? '' : s >= 60 ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : s.toFixed(3);
 const fmtTotal = (s) => `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${(s % 60).toFixed(3).padStart(6, '0')}`;
 
-const season = await fetch('data/season.json').then((r) => r.json());
+const season = await fetch('data/season.json', { cache: 'no-cache' }).then((r) => r.json());
 const races = [...season.races].reverse();                                  // latest first
 const want = new URLSearchParams(location.search).get('race') || races[0].slug;
 $('race').innerHTML = races.map((r) => `<option value="${r.slug}">R${r.round} · ${r.name.replace(" Grand Prix", " GP")}${r.venue ? " · " + r.venue : ""}</option>`).join('');
