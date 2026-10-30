@@ -73,15 +73,26 @@ function draw(t, order) {
   g.strokeStyle = '#2A2E3B'; g.lineWidth = 18; g.stroke(); g.strokeStyle = '#3A3F50'; g.lineWidth = 2; g.stroke();
   const [sx, sy] = P(...meta.track[0]); g.fillStyle = '#fff'; g.fillRect(sx - 3, sy - 11, 6, 22);
   const lead = order[0];
-  for (let k = order.length - 1; k >= 0; k--) {            // back markers first, so the leader is drawn on top
-    const n = order[k], i = idx[n], d = meta.drivers[i];
-    const [px, py] = P(...carXY(i, t));
+  const cars = order.map((n) => { const i = idx[n]; const [px, py] = P(...carXY(i, t)); return { n, d: meta.drivers[i], px, py }; });
+  for (let k = cars.length - 1; k >= 0; k--) {             // back markers first, so the leader is drawn on top
+    const { n, d, px, py } = cars[k];
     const big = n === sel || (sel == null && n === lead), dim = sel != null && n !== sel;
     g.globalAlpha = dim ? 0.35 : 1;
     g.beginPath(); g.arc(px, py, big ? 12 : 8.5, 0, Math.PI * 2); g.fillStyle = d.color; g.fill();
     g.lineWidth = 2.5; g.strokeStyle = big ? '#fff' : '#0B0C10'; g.stroke();
-    g.font = `700 ${big ? 16 : 12}px "Titillium Web"`; g.fillStyle = '#fff'; g.textBaseline = 'middle';
-    g.fillText(d.code, px + (big ? 16 : 11), py - (big ? 14 : 10));
+  }
+  // names: the followed car and the leader always, then everyone else in race order where the label has room
+  const placed = [];
+  const fits = (x, y, w) => placed.every((b) => x + w < b.x || x > b.x + b.w || y + 8 < b.y - 8 || y - 8 > b.y + 8);
+  const labelled = [...cars].sort((a, b) => (b.n === sel) - (a.n === sel) || order.indexOf(a.n) - order.indexOf(b.n));
+  g.textBaseline = 'middle';
+  for (const { n, d, px, py } of labelled) {
+    const big = n === sel || (sel == null && n === lead);
+    g.font = `700 ${big ? 16 : 12}px "Titillium Web"`;
+    const x = px + (big ? 16 : 11), y = py - (big ? 14 : 10), w = g.measureText(d.code).width;
+    if (!big && !fits(x, y, w)) continue;
+    g.globalAlpha = sel != null && n !== sel ? 0.35 : 1; g.fillStyle = '#fff'; g.fillText(d.code, x, y);
+    placed.push({ x, y, w });
   }
   g.globalAlpha = 1;
 }
