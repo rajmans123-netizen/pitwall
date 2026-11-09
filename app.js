@@ -67,6 +67,7 @@ function fit() {
   const w = rot ? y1 - y0 : x1 - x0, h = rot ? x1 - x0 : y1 - y0, pad = Math.min(60, r.width / 9);
   const s = Math.min((r.width - 2 * pad) / w, (r.height - 2 * pad - 30) / h);
   view = { rot, s, dpr, cx: r.width / 2, cy: r.height / 2 - 12, mx: (x0 + x1) / 2, my: (y0 + y1) / 2 };
+  view.home = { s, cy: view.cy, mx: view.mx, my: view.my };
 }
 const P = (x, y) => {   // track coordinates -> css pixels (y up in the data, down on screen)
   let dx = x - view.mx, dy = y - view.my;
@@ -91,8 +92,14 @@ cv.addEventListener('click', (e) => {   // tap a car to follow it
 // overtakes being shown: { n, other, pos, at (clock ms) }
 const FLASH = 2600;
 let shown = [];
+// ?zoom=3 with a followed car: the camera rides with that car, zoomed in (otherwise the whole circuit)
+const ZOOM = +Q.get('zoom') || 1;
+function camera(t) {
+  if (ZOOM > 1 && sel != null) { const [fx, fy] = carXY(idx[sel], t); Object.assign(view, { s: view.home.s * ZOOM, cy: view.home.cy + 12, mx: fx, my: fy }); }
+  else Object.assign(view, view.home);
+}
 function draw(t, order, clock) {
-  const { dpr } = view; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+  camera(t); const { dpr } = view; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
   g.lineJoin = g.lineCap = 'round';
   g.beginPath(); meta.track.forEach(([x, y], k) => { const [px, py] = P(x, y); k ? g.lineTo(px, py) : g.moveTo(px, py); }); g.closePath();
   g.strokeStyle = '#2A2E3B'; g.lineWidth = 18; g.stroke(); g.strokeStyle = '#3A3F50'; g.lineWidth = 2; g.stroke();
@@ -156,7 +163,7 @@ function board(t, order, clock) {
     if (r.y == null) { r.from = r.to = r.y = y; }
     else if (y !== r.to) { r.from = r.y; r.to = y; r.at = clock; }
     r.y = r.from + (r.to - r.from) * ease((clock - r.at) / 600);
-    r.el.style.transform = `translateY(${r.y}px)`;
+    r.el.style.transform = `translateY(${r.y}px)`; r.el.style.zIndex = clock - r.at < 600 ? (r.to < r.from ? 3 : 2) : 1;   // a moving row slides over the others, the one going up on top
     r.el.children[0].textContent = k + 1;
     const gp = gapOf(n, t, gapMode === 'int' ? 2 : 1), out = isOut(n, t), fin = isFinal(t);
     r.el.children[4].textContent = fin ? (resultText[n] || '') : out ? 'OUT' : k === 0 ? 'LEADER' : inPit(n, t) ? 'PIT' : fmtGap(gp);
