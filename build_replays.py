@@ -4,7 +4,7 @@
 import json, os, glob, subprocess
 from datetime import datetime, timedelta
 HERE = os.path.dirname(os.path.abspath(__file__))
-KEEP = ('slug', 'name', 'location', 'hz', 'frames', 't0', 'total_laps', 'drivers', 'track', 'fastest', 'lap_starts', 'positions', 'gaps', 'overtakes', 'pits')
+KEEP = ('slug', 'name', 'location', 'hz', 'frames', 't0', 'total_laps', 'drivers', 'track', 'fastest', 'lap_starts', 'positions', 'gaps', 'overtakes', 'pits', 'result')
 for d in sorted(glob.glob(f'{HERE}/raw_replay/*/')):
     slug = os.path.basename(d.rstrip('/'))
     if len(__import__('sys').argv) > 1 and slug not in __import__('sys').argv[1:]: continue
@@ -21,5 +21,7 @@ for d in sorted(glob.glob(f'{HERE}/raw_replay/*/')):
     t0 = (min(starts) - timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%S'); t1 = (min(last) + timedelta(seconds=60)).strftime('%Y-%m-%dT%H:%M:%S')
     subprocess.run(['python3', f'{HERE}/build_data.py', d, slug, t0, t1], check=True, cwd=HERE)
     p = f'{HERE}/web/data/{slug}.json'; m = json.load(open(p))
-    m['name'] = json.load(open(f'{HERE}/web/data/timing/{slug}.json'))['name']
+    tm = json.load(open(f'{HERE}/web/data/timing/{slug}.json')); m['name'] = tm['name']
+    # the official classification (after penalties), shown when the replay reaches the end: [driver, position or None, result text]
+    m['result'] = [[d['n'], d['pos'], d['result']] for d in tm['drivers']]
     json.dump({k: m[k] for k in KEEP if k in m}, open(p, 'w'), separators=(',', ':'))

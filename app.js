@@ -21,6 +21,11 @@ const XY = new Int16Array(buf), D = meta.drivers.length, HZ = meta.hz, DUR = met
 const idx = Object.fromEntries(meta.drivers.map((d, i) => [d.n, i]));
 const drv = Object.fromEntries(meta.drivers.map((d) => [d.n, d]));
 const PASSES = meta.overtakes || [];
+// the official classification (after penalties) takes over the board when the replay reaches the end
+const RESULT = meta.result || null;
+const resultOrder = RESULT && [...RESULT].sort((a, b) => (a[1] ?? 99) - (b[1] ?? 99)).map((r) => r[0]).filter((n) => n in idx);
+const resultText = RESULT && Object.fromEntries(RESULT.map((r) => [r[0], r[2]]));
+const isFinal = (t) => !!RESULT && t >= DUR - 2;
 $('race').innerHTML = `<b>${meta.name}</b> · ${meta.location} · replay`;
 $('loading').remove();
 
@@ -36,10 +41,17 @@ function orderAt(t) {
   return meta.drivers.map((d) => d.n).sort((a, b) => (p[a] ?? 99) - (p[b] ?? 99));
 }
 const lapOf = (n, t) => { const ls = meta.lap_starts[n] || []; const i = lastBefore(ls, t, (r) => r[1]); return i < 0 ? 0 : ls[i][0]; };
-const gapOf = (n, t) => { const g = (meta.gaps || {})[n] || []; const i = lastBefore(g, t); return i < 0 ? null : g[i]; };
+const gapOf = (n, t, col) => {   // latest value of one gap column (1 = to the leader, 2 = to the car ahead); OpenF1 sometimes leaves one empty
+  const g = (meta.gaps || {})[n] || [];
+  for (let i = lastBefore(g, t), k = 0; i >= 0 && k < 40; i--, k++) if (g[i][col] != null) return g[i][col];
+  return null;
+};
 const maxLap = Object.fromEntries(meta.drivers.map((d) => [d.n, Math.max(0, ...(meta.lap_starts[d.n] || []).map((r) => r[0]))]));
-const lastLapT = Object.fromEntries(meta.drivers.map((d) => [d.n, Math.max(0, ...(meta.lap_starts[d.n] || []).map((r) => r[1]))]));
-const isOut = (n, t) => maxLap[n] < meta.total_laps - 3 && t > lastLapT[n] + 150;
+// when a car started its last lap (by lap number: a few laps carry stray timestamps)
+const lastLapT = Object.fromEntries(meta.drivers.map((d) => { const ls = meta.lap_starts[d.n] || []; const top = ls.reduce((a, r) => (r[0] > a[0] ? r : a), [0, 0]); return [d.n, top[1]]; }));
+const official = Object.fromEntries((meta.result || []).map((r) => [r[0], r[2]]));
+const retired = (n) => official[n] != null ? /^(DNF|DNS|DSQ|NC)/.test(official[n]) : maxLap[n] < meta.total_laps - 3;
+const isOut = (n, t) => retired(n) && t > lastLapT[n] + 150;
 const inPit = (n, t) => (meta.pits || []).some(([pt, pn, , dur]) => pn === n && t >= pt - (dur || 20) && t <= pt + 6);
 
 // ---------- map ----------
@@ -146,11 +158,11 @@ function board(t, order, clock) {
     r.y = r.from + (r.to - r.from) * ease((clock - r.at) / 600);
     r.el.style.transform = `translateY(${r.y}px)`;
     r.el.children[0].textContent = k + 1;
-    const gp = gapOf(n, t), out = isOut(n, t);
-    r.el.children[4].textContent = out ? 'OUT' : k === 0 ? 'LEADER' : inPit(n, t) ? 'PIT' : fmtGap(gp && gp[gapMode === 'int' ? 2 : 1]);
+    const gp = gapOf(n, t, gapMode === 'int' ? 2 : 1), out = isOut(n, t), fin = isFinal(t);
+    r.el.children[4].textContent = fin ? (resultText[n] || '') : out ? 'OUT' : k === 0 ? 'LEADER' : inPit(n, t) ? 'PIT' : fmtGap(gp);
     const on = clock - r.markAt < FLASH ? r.mark : null;
     r.el.children[3].textContent = on === 'up' ? '▲' : on === 'down' ? '▼' : '';
-    r.el.classList.toggle('up', on === 'up'); r.el.classList.toggle('down', on === 'down'); r.el.classList.toggle('out', out);
+    r.el.classList.toggle('up', on === 'up'); r.el.classList.toggle('down', on === 'down'); r.el.classList.toggle('out', fin ? resultText[n] && !/^[+\d]/.test(resultText[n]) : out);
   });
   // keep the followed car's row in view when the board scrolls (laptop layout)
   const b = rowsEl.parentElement;
@@ -201,15 +213,17 @@ if (Q.get('speed')) { speed = +Q.get('speed'); [...sp.children].forEach((c) => c
 if (Q.get('driver')) pick(+Q.get('driver'));
 if (Q.get('play')) setPlay(true);
 
-let order = orderAt(t), lastBoard = -1;
+let order = orderAt(t), lastBoard = -1, wasFinal = false;
 function step(clock) {
   if (t < lastT) jump(t);
   overtakesBetween(lastT, t, clock); lastT = t;
-  if (Math.abs(t - lastBoard) > 0.25 || !playing) { order = orderAt(t); lastBoard = t; $('scrub').value = (t / DUR) * 1000; }
+  if (Math.abs(t - lastBoard) > 0.25 || !playing) { order = isFinal(t) ? resultOrder : orderAt(t); lastBoard = t; $('scrub').value = (t / DUR) * 1000; }
+  const fin = isFinal(t); if (fin !== wasFinal) { wasFinal = fin; $('boardtitle').textContent = fin ? 'FINAL RESULT · after penalties' : 'DRIVER'; $('gaphead').style.visibility = fin ? 'hidden' : ''; }
   board(t, order, clock); hud(t, order, clock); draw(t, order, clock);
 }
 window.__render = (tt, clock) => { t = Math.max(0, Math.min(DUR, tt)); step(clock ?? performance.now()); };
 window.__meta = meta;
+window.__carPx = (n) => P(...carXY(idx[n], t));   // for tests: where a car is drawn on the map
 function frame(now) {
   const dt = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
   if (playing) { t = Math.min(DUR, t + dt * speed); if (t >= DUR) setPlay(false); }
