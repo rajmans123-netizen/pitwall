@@ -63,7 +63,7 @@ max_lap = {n: max(l for l, _ in v) for n, v in lap_starts.items()}
 total = max(l['lap_number'] for l in laps)
 def in_pit(n, t):   # OpenF1's pit time is late in the stop (at a red flag, the restart), so the lane runs from about pt - duration to pt; plus margins for slowing in and the out-lap
     return any(pt - (dur or 30) - 12 <= t <= pt + 35 for pt, pn, _, dur in pits if pn == n)
-def is_out(n, t): return max_lap.get(n, 0) < total - 3 and t > last_lap_t.get(n, 0) + 150
+def is_out(n, t): return n not in lap_starts or (max_lap.get(n, 0) < total - 3 and t > last_lap_t.get(n, 0) + 150)   # no laps at all = didn't start
 def order_at(t, rows=positions):
     cur = {}
     for tt, n, pos in rows:
@@ -83,6 +83,9 @@ def close(a_, b_, t, before=20, after=3):
     d = prog[f0:f1 + 1, col[a_]] - prog[f0:f1 + 1, col[b_]]; d = (d + 0.5) % 1 - 0.5     # a ahead of b on the road when > 0
     cross = (d[:-1] < 0) & (d[1:] >= 0) & (np.abs(d[:-1]) < 0.03) & (np.abs(d[1:]) < 0.03)
     return bool(cross.any())   # the passer really drew alongside and got ahead on the track
+def speed(n, t, span=5):   # metres per second over the last `span` seconds, from the car's positions (decimetres)
+    f1 = min(N - 1, max(1, int(t * HZ))); f0 = max(0, f1 - int(span * HZ)); j = col[n]
+    p = xy[f0:f1 + 1, j].astype(float); return float(np.hypot(*np.diff(p, axis=0).T).sum()) / 10 / max(0.25, (f1 - f0) / HZ)
 overtakes = []
 end = t1 - t0
 prev, _ = order_at(0)
@@ -95,7 +98,8 @@ for t in np.arange(1, end, 1.0):
         for a_ in moved:
             for b_ in cur:
                 if rank_prev.get(a_, 99) > rank_prev.get(b_, 99) and rank_cur[a_] < rank_cur[b_] and rank_later.get(a_, 99) < rank_later.get(b_, 99):
-                    if not (in_pit(a_, t) or in_pit(b_, t) or is_out(a_, t) or is_out(b_, t)) and close(a_, b_, t):
+                    if not (in_pit(a_, t) or in_pit(b_, t) or is_out(a_, t) or is_out(b_, t)) and close(a_, b_, t) \
+                            and speed(b_, t) >= 0.4 * speed(a_, t):   # driving past a stopped or crawling car isn't an overtake
                         lap = max([l for l, lt in lap_starts.get(cur[0], []) if lt <= t] or [1])
                         if any(o[1] == a_ and o[2] == b_ and t - o[0] < 30 for o in overtakes[-60:]): continue   # the timing feed flickered: same pass
                         overtakes.append([round(float(t), 1), a_, b_, cp[a_], lap])

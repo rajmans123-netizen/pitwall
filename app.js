@@ -51,7 +51,7 @@ const maxLap = Object.fromEntries(meta.drivers.map((d) => [d.n, Math.max(0, ...(
 const lastLapT = Object.fromEntries(meta.drivers.map((d) => { const ls = meta.lap_starts[d.n] || []; const top = ls.reduce((a, r) => (r[0] > a[0] ? r : a), [0, 0]); return [d.n, top[1]]; }));
 const official = Object.fromEntries((meta.result || []).map((r) => [r[0], r[2]]));
 const retired = (n) => official[n] != null ? /^(DNF|DNS|DSQ|NC)/.test(official[n]) : maxLap[n] < meta.total_laps - 3;
-const isOut = (n, t) => retired(n) && t > lastLapT[n] + 150;
+const isOut = (n, t) => !(meta.lap_starts[n] || []).length || /^DNS/.test(official[n] || '') || (retired(n) && t > lastLapT[n] + 150);   // didn't start = out from the start
 const inPit = (n, t) => (meta.pits || []).some(([pt, pn, , dur]) => pn === n && t >= pt - (dur || 20) && t <= pt + 6);
 
 // ---------- map ----------
