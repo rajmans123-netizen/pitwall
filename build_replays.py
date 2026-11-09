@@ -1,12 +1,13 @@
 # Builds a replay (web/data/<slug>.bin + .json) for every race downloaded by fetch_replays.py, using build_data.py,
 # then trims each .json to what the replay page reads. The replay window runs from the start of lap 1 to the chequered flag.
-# usage: python3 build_replays.py
+# usage: python3 build_replays.py [slug ...]
 import json, os, glob, subprocess
 from datetime import datetime, timedelta
 HERE = os.path.dirname(os.path.abspath(__file__))
-KEEP = ('slug', 'name', 'location', 'hz', 'frames', 't0', 'total_laps', 'drivers', 'track', 'fastest', 'lap_starts', 'positions')
+KEEP = ('slug', 'name', 'location', 'hz', 'frames', 't0', 'total_laps', 'drivers', 'track', 'fastest', 'lap_starts', 'positions', 'gaps', 'overtakes', 'pits')
 for d in sorted(glob.glob(f'{HERE}/raw_replay/*/')):
     slug = os.path.basename(d.rstrip('/'))
+    if len(__import__('sys').argv) > 1 and slug not in __import__('sys').argv[1:]: continue
     if len(glob.glob(d + 'loc/*.json')) < len(json.load(open(d + 'drivers.json'))): print(slug, 'not fully downloaded yet'); continue
     laps = json.load(open(d + 'laps.json'))
     ts = lambda s: datetime.fromisoformat(s)

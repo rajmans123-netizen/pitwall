@@ -1,7 +1,7 @@
 # Downloads what build_data.py needs to replay every 2026 race (car positions for every driver, plus intervals, positions,
 # race control and weather), gently: OpenF1's free tier allows ~30 requests a minute.
 #   raw_replay/<slug>/{sessions,drivers,laps,intervals,position,race_control,stints,pit,weather}.json + loc/<driver>.json
-# usage: python3 fetch_replays.py     (Austin is skipped: it's already in raw/)
+# usage: python3 fetch_replays.py [slug ...]    (Austin is skipped: it's already in raw/; slugs limit it to those races)
 import json, os, glob, time, urllib.request, urllib.error
 HERE = os.path.dirname(os.path.abspath(__file__))
 def get(path):
@@ -17,7 +17,7 @@ def get(path):
     raise RuntimeError(path)
 for t in sorted(glob.glob(f'{HERE}/web/data/timing/*.json')):
     slug = os.path.basename(t)[:-5]
-    if slug == 'austin': continue
+    if slug == 'austin' or (len(__import__('sys').argv) > 1 and slug not in __import__('sys').argv[1:]): continue
     k = next(json.load(open(d + 'session.json'))['session_key'] for d in glob.glob(f'{HERE}/raw_season/*/')
              if json.load(open(d + 'session.json'))['circuit_short_name'] and
              __import__('re').sub(r'[^a-z0-9]+', '-', __import__('unicodedata').normalize('NFKD', json.load(open(d + 'session.json'))['circuit_short_name']).encode('ascii', 'ignore').decode().lower()).strip('-') == slug)

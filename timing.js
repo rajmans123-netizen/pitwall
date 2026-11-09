@@ -1,6 +1,6 @@
 // Pit Wall season timing: every lap of every driver in every 2026 race so far (data/season.json + data/timing/<slug>.json,
 // packed by build_timing.py from OpenF1). Purple = the race's fastest lap, green = a driver's personal best,
-// a dot = the tyre a stint started on, PIT = in/out laps. Tap a lap for its sectors.
+// a dot = the tyre a stint started on, PIT = pit stop (DT = drive-through penalty, RF = red-flag stop). Tap a lap for its sectors.
 const $ = (id) => document.getElementById(id);
 const TYRE = { SOFT: '#E10600', MEDIUM: '#FACC15', HARD: '#F2F3F5', INTERMEDIATE: '#22C55E', WET: '#3B82F6' };
 const fmt = (s) => s == null ? '' : s >= 60 ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : s.toFixed(3);
@@ -25,7 +25,7 @@ async function load(slug) {
     <div><div class="k">Fastest lap</div><div class="v p">${fl.code} · ${fmt(r.fastest.time)} (L${r.fastest.lap})</div></div>
     ${r.partial ? '<div class="legend" style="color:var(--yellow)">OpenF1 only has some of this race\'s laps</div>' : ''}
     <div class="legend"><span><i class="sw" style="background:var(--purple)"></i>fastest lap</span><span><i class="sw" style="background:var(--green)"></i>personal best</span>
-      ${Object.entries(TYRE).map(([k, c]) => `<span><i class="sw" style="background:${c};border-radius:50%"></i>${k[0]}</span>`).join('')}<span>PIT = in/out lap</span></div>`;
+      ${Object.entries(TYRE).map(([k, c]) => `<span><i class="sw" style="background:${c};border-radius:50%"></i>${k[0]}</span>`).join('')}<span>PIT = pit stop · DT = drive-through · RF = red-flag stop</span></div>`;
   const L = r.total_laps;
   let h = `<thead><tr><th class="st c0">POS</th><th class="st c1">DRIVER</th><th class="st c2">TIME / GAP</th><th>BEST</th>`;
   for (let i = 1; i <= L; i++) h += `<th>L${i}</th>`;
@@ -43,7 +43,7 @@ async function load(slug) {
       const pit = (d.pit || []).includes(i) || (d.pit || []).includes(i - 1);
       if (pit) cls.push('pit');
       const dot = stintAt[i] ? `<i style="background:${TYRE[stintAt[i]] || '#888'}"></i>` : '';
-      h += `<td class="${cls.join(' ')}" data-l="${i}">${dot}${t == null ? '' : fmt(t)}${(d.pit || []).includes(i) ? '<small>PIT</small>' : ''}</td>`;
+      h += `<td class="${cls.join(' ')}" data-l="${i}">${dot}${t == null ? '' : fmt(t)}${(d.pit || []).includes(i) ? '<small>PIT</small>' : (d.dt || []).includes(i) ? '<small>DT</small>' : (d.rf || []).includes(i) ? '<small>RF</small>' : ''}</td>`;
     }
     h += '</tr>';
   }

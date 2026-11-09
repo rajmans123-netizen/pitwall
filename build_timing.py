@@ -34,12 +34,33 @@ for d in sorted(glob.glob(f'{RAW}/*/'), key=lambda p: json.load(open(p + 'sessio
     res = {x['driver_number']: x for x in results}
     leader_laps = max((x.get('number_of_laps') or 0) for x in results)
     total = max([l['lap_number'] for l in laps] + [leader_laps])
-    pits = {}
-    for p in json.load(open(d + 'pit.json')):
-        if p.get('lap_number'): pits.setdefault(p['driver_number'], set()).add(p['lap_number'])
+    # OpenF1 logs every trip through the pit lane: a red-flag wait (minutes in the lane), a drive-through penalty (no tyre change)
+    # and real pit stops. Only real stops are marked PIT.
+    pit_rows = [p for p in json.load(open(d + 'pit.json')) if p.get('lap_number')]
+    lane = lambda p: p.get('lane_duration') or p.get('pit_duration') or 0
+    # drive-throughs: race control says when one is served; the car's quickest trip through the lane after the penalty is it
+    rc_path = f"{HERE}/raw_replay/{slugify(s['circuit_short_name'])}/race_control.json"
+    rc = json.load(open(rc_path)) if os.path.exists(rc_path) else []
+    dt_rows = set()
+    for m in rc:
+        msg = (m.get('message') or '').upper()
+        if 'DRIVE THROUGH PENALTY FOR CAR' in msg and 'SERVED' not in msg:
+            car = int(re.search(r'CAR (\d+)', msg).group(1))
+            later = [i for i, p in enumerate(pit_rows) if p['driver_number'] == car and p['date'] > m['date'] and 0 < lane(p) <= 100 and i not in dt_rows]
+            if later: dt_rows.add(min(later, key=lambda i: lane(pit_rows[i])))
+    pits, dts, rfs = {}, {}, {}
+    for i, p in enumerate(pit_rows):
+        kind = rfs if lane(p) > 100 else dts if i in dt_rows else pits
+        kind.setdefault(p['driver_number'], set()).add(p['lap_number'])
     stints = {}
     for st in json.load(open(d + 'stints.json')):
         if st.get('lap_start'): stints.setdefault(st['driver_number'], []).append([st['lap_start'], st.get('lap_end'), st.get('compound')])
+    for n, ss in stints.items():   # a drive-through starts a new "stint" on the same tyres in OpenF1: join it back
+        ss.sort(key=lambda x: x[0]); joined = []
+        for x in ss:
+            if joined and x[2] == joined[-1][2] and (x[0] - 1) in dts.get(n, set()): joined[-1][1] = x[1]
+            else: joined.append(x)
+        stints[n] = joined
     rows = []
     for n, dv in drivers.items():
         mine = sorted((l for l in laps if l['driver_number'] == n), key=lambda l: l['lap_number'])
@@ -54,7 +75,7 @@ for d in sorted(glob.glob(f'{RAW}/*/'), key=lambda p: json.load(open(p + 'sessio
         rows.append(dict(n=n, code=dv['name_acronym'], name=dv['full_name'].title(), team=dv['team_name'], color='#' + (dv.get('team_colour') or '888888'),
                          pos=r.get('position') if r else None, result=result_text(r, leader_laps), points=r.get('points') if r else 0,
                          laps=lt, sectors=sec, best=dict(time=best[0], lap=best[1]) if best else None,
-                         pit=sorted(pits.get(n, [])), stints=sorted(stints.get(n, []))))
+                         pit=sorted(pits.get(n, [])), dt=sorted(dts.get(n, [])), rf=sorted(rfs.get(n, [])), stints=sorted(stints.get(n, []))))
     rows.sort(key=lambda x: (x['pos'] is None, x['pos'] or 0, -len([t for t in x['laps'] if t])))
     fl = min((x for x in rows if x['best']), key=lambda x: x['best']['time'])
     m = meetings.get(s['meeting_key'], {})

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pit Wall · F1 race replay</title>
-<meta name="description" content="Replay any F1 race in your browser: every car moving on the track map. Free, open source.">
+<meta name="description" content="Replay any F1 race in your browser: every car on the track map, the leaderboard and every overtake. Free, open source.">
 <meta name="theme-color" content="#0B0C10">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,7 +27,27 @@ header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; bord
 select { font: 700 15px 'Titillium Web'; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; max-width: 100%; }
 .lap { font: 900 22px/1 'Titillium Web'; }
 .lap small { color: var(--muted); font-weight: 600; font-size: 15px; }
-main { display: grid; grid-template-columns: 1fr; min-height: 0; }
+main { display: grid; grid-template-columns: 290px 1fr; min-height: 0; }
+.board { border-right: 1px solid var(--line); overflow-y: auto; position: relative; padding: 8px 0; }
+.board .head, .row { display: grid; grid-template-columns: 26px 5px 1fr 16px 84px; gap: 8px; align-items: center; padding: 0 14px; }
+.board .head { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .08em; padding-bottom: 6px; }
+#gaphead { text-align: right; cursor: pointer; user-select: none; }
+.rows { position: relative; }
+.row { position: absolute; left: 0; right: 0; top: 0; height: 32px; cursor: pointer; border-left: 3px solid transparent; }
+.row:hover, .row.sel { background: #1C1F29; }
+.row .p { font: 700 15px 'JetBrains Mono'; text-align: right; color: var(--muted); }
+.row .bar { height: 18px; border-radius: 2px; }
+.row .c { font-weight: 700; font-size: 16px; letter-spacing: .03em; }
+.row .m { font-size: 12px; text-align: center; }
+.row .g { font: 500 13px 'JetBrains Mono'; text-align: right; color: var(--muted); white-space: nowrap; }
+.row.out { opacity: .35; }
+.row.up { background: rgba(34,197,94,.16); border-left-color: var(--green); } .row.up .p, .row.up .m { color: var(--green); }
+.row.down { background: rgba(248,113,113,.12); border-left-color: #F87171; } .row.down .p, .row.down .m { color: #F87171; }
+.passes { font: 500 14px 'JetBrains Mono'; color: var(--muted); } .passes b { color: var(--green); font-size: 18px; }
+.ticker { position: absolute; left: 50%; bottom: 16px; transform: translate(-50%, 16px); opacity: 0; transition: .3s; background: var(--panel); border: 1px solid var(--line);
+          border-left: 4px solid var(--green); padding: 9px 14px; font: 700 14px 'JetBrains Mono'; border-radius: 6px; max-width: 92%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticker b { color: var(--green); }
+.ticker.on { opacity: 1; transform: translate(-50%, 0); }
 .map { position: relative; min-height: 0; }
 .hint { position: absolute; left: 20px; top: 14px; color: var(--muted); font-size: 13px; font-weight: 600; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -43,6 +63,10 @@ button.on { background: var(--red); border-color: var(--red); }
 .loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); font-weight: 700; letter-spacing: .1em; color: var(--muted); z-index: 9; }
 @media (max-width: 760px) {
     header { padding: 10px 14px; gap: 10px; } .race { width: 100%; order: 3; font-size: 13px; }
+    .app { height: auto; min-height: 100dvh; } main { grid-template-columns: 1fr; }
+    .map { height: 56vh; order: 1; } .board { order: 2; border-right: 0; border-top: 1px solid var(--line); overflow: visible; }
+    .row { height: 28px; } .row .c { font-size: 15px; } .ticker { font-size: 12px; bottom: 10px; }
+    footer { position: sticky; bottom: 0; background: var(--bg); z-index: 2; padding: 10px 14px; } .credit { display: none; }
   }
 </style>
 </head>
@@ -55,10 +79,12 @@ button.on { background: var(--red); border-color: var(--red); }
     <select id="pick" aria-label="Race"></select>
     <div class="race" id="race"></div>
     <div class="spacer"></div>
+    <div class="passes" id="passes"></div>
     <div class="lap" id="lap">LAP 0 <small>/ 0</small></div>
   </header>
   <main>
-    <section class="map"><canvas id="cv"></canvas><div class="hint">Tap a car to follow it</div></section>
+    <section class="board"><div class="head"><span>POS</span><span></span><span>DRIVER</span><span></span><span id="gaphead">INTERVAL ⇄</span></div><div class="rows" id="rows"></div></section>
+    <section class="map"><canvas id="cv"></canvas><div class="hint">Tap a car to follow it</div><div class="ticker" id="ticker"></div></section>
   </main>
   <footer>
     <button id="play" aria-label="Play">▶</button>
@@ -68,6 +94,6 @@ button.on { background: var(--red); border-color: var(--red); }
     <div class="credit">Data: <a href="https://openf1.org">OpenF1</a> (unofficial, not associated with Formula 1) · inspired by Tom Shaw's f1-race-replay · built with Claude by <a href="https://instagram.com/raj_triess">@raj_triess</a></div>
   </footer>
 </div>
-<script type="module" src="app.js?v=20261030"></script>
+<script type="module" src="app.js?v=20261109"></script>
 </body>
 </html>
